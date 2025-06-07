@@ -24,11 +24,13 @@ from tkinter import (
     Frame,
     Label,
     filedialog,
+    font as tkfont,
 )
 from tkinter.ttk import Notebook
 from urllib.request import urlopen
 from urllib.error import URLError, HTTPError
 from html.parser import HTMLParser
+import webbrowser
 
 
 class History:
@@ -55,6 +57,11 @@ class History:
             self._index += 1
             return self._entries[self._index]
         return None
+
+    def clear(self) -> None:
+        """Remove all entries from the history."""
+        self._entries.clear()
+        self._index = -1
 
 
 class BookmarkManager:
@@ -117,9 +124,9 @@ def _fetch_url(url: str) -> str:
 class BrowserTab:
     """Represents a single tab within the ``Browser`` window."""
 
-    def __init__(self, notebook: Notebook, title: str = "Tab") -> None:
+    def __init__(self, notebook: Notebook, font: tkfont.Font, title: str = "Tab") -> None:
         self.frame = Frame(notebook)
-        self.display = Text(self.frame, wrap="word")
+        self.display = Text(self.frame, wrap="word", font=font)
         self.scroll = Scrollbar(self.frame, command=self.display.yview)
         self.display.configure(yscrollcommand=self.scroll.set)
         self.scroll.pack(side=RIGHT, fill=Y)
@@ -134,9 +141,19 @@ class BrowserTab:
 class Browser:
     """A basic multi-tab browser based on ``tkinter``."""
 
-    def __init__(self, title: str = "DPVW Browser", home_url: str = "https://example.com", *, use_cache: bool = True, dark_mode: bool = False) -> None:
+    def __init__(
+        self,
+        title: str = "DPVW Browser",
+        home_url: str = "https://example.com",
+        *,
+        use_cache: bool = True,
+        dark_mode: bool = False,
+        font_size: int = 12,
+    ) -> None:
         self.root = Tk()
         self.root.title(title)
+
+        self.font = tkfont.Font(size=font_size)
 
         self.home_url = home_url
 
@@ -206,10 +223,23 @@ class Browser:
         self.dark_mode_button = Button(control_bar, text="Dark Mode", command=self.toggle_dark_mode)
         self.dark_mode_button.pack(side=LEFT)
 
+        self.zoom_in_button = Button(control_bar, text="Zoom In", command=self.zoom_in)
+        self.zoom_in_button.pack(side=LEFT)
+
+        self.zoom_out_button = Button(control_bar, text="Zoom Out", command=self.zoom_out)
+        self.zoom_out_button.pack(side=LEFT)
+
+        self.external_button = Button(control_bar, text="Open External", command=self.open_external)
+        self.external_button.pack(side=LEFT)
+
+        self.clear_history_button = Button(control_bar, text="Clear History", command=self.clear_history)
+        self.clear_history_button.pack(side=LEFT)
+
         self.notebook = Notebook(self.root)
         self.notebook.pack(fill="both", expand=True)
         self.tabs: list[BrowserTab] = []
         self.new_tab()
+        self.go_home()
 
         self.status = Label(self.root, text="Ready")
         self.status.pack(side=BOTTOM, fill=X)
@@ -219,7 +249,7 @@ class Browser:
         return self.tabs[index]
 
     def new_tab(self) -> None:
-        tab = BrowserTab(self.notebook, title=f"Tab {len(self.tabs)+1}")
+        tab = BrowserTab(self.notebook, self.font, title=f"Tab {len(self.tabs)+1}")
         if self.dark_mode:
             tab.display.config(background="#2e2e2e", foreground="#dcdcdc")
         self.tabs.append(tab)
@@ -303,7 +333,7 @@ class Browser:
                 self.cache.set(url, html)
         else:
             html = cached
-        tab = BrowserTab(self.notebook, title="Source")
+        tab = BrowserTab(self.notebook, self.font, title="Source")
         self.tabs.append(tab)
         tab.show_text(html)
         self.notebook.select(len(self.tabs) - 1)
@@ -313,7 +343,7 @@ class Browser:
         if filename:
             with open(filename, "r", encoding="utf-8", errors="ignore") as fh:
                 html = fh.read()
-            tab = BrowserTab(self.notebook, title=filename)
+            tab = BrowserTab(self.notebook, self.font, title=filename)
             self.tabs.append(tab)
             parser = _HTMLTextParser()
             parser.feed(html)
@@ -353,6 +383,10 @@ class Browser:
     def clear_cache(self) -> None:
         self.cache.clear()
         self.status.config(text="Cache cleared")
+
+    def clear_history(self) -> None:
+        self.history.clear()
+        self.status.config(text="History cleared")
 
     def toggle_cache(self) -> None:
         self.use_cache = not self.use_cache
@@ -403,6 +437,22 @@ class Browser:
         state = "enabled" if self.dark_mode else "disabled"
         self.dark_mode_button.config(text=("Light Mode" if self.dark_mode else "Dark Mode"))
         self.status.config(text=f"Dark mode {state}")
+
+    def zoom_in(self) -> None:
+        size = self.font["size"] + 2
+        self.font.configure(size=size)
+        self.status.config(text=f"Zoom {size}")
+
+    def zoom_out(self) -> None:
+        size = max(6, self.font["size"] - 2)
+        self.font.configure(size=size)
+        self.status.config(text=f"Zoom {size}")
+
+    def open_external(self) -> None:
+        url = self.address.get()
+        if url:
+            webbrowser.open(url)
+            self.status.config(text=f"Opened {url} externally")
 
     def run(self) -> None:
         self.root.mainloop()

@@ -36,3 +36,9 @@ Reloading the current page, jumping to your home URL, saving the raw
 HTML and clearing the cache are also available from the toolbar.  You can
 search for text within the current page, cycle through tabs, toggle dark
 mode or disable caching at any time.
+
+Other conveniences include buttons to zoom the text in or out and open
+the current URL in your system's default browser.  You can also clear
+the navigation history with a single click.  The constructor accepts a
+``font_size`` option to control the initial text size, and the home page
+loads automatically when the window opens.
